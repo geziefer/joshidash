@@ -42,9 +42,9 @@ final level1 = LevelData(
     LevelTile(37, 2, TileType.block),
     // Gap below platform, ground continues
     for (int x = 34; x <= 38; x++) LevelTile(x, 0, TileType.ground),
-    // Double triangle
+    // Double triangle (4 units apart = land between them)
     LevelTile(40, 1, TileType.triangle),
-    LevelTile(43, 1, TileType.triangle),
+    LevelTile(44, 1, TileType.triangle),
     for (int x = 39; x <= 49; x++) LevelTile(x, 0, TileType.ground),
   ],
 );

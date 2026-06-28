@@ -24,7 +24,11 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
   double _jumpStartY = 0;
   double _fallSpeed = 0;
   static const double _jumpHeight = 2.0;
-  static const double _jumpDuration = 0.4;
+  static const double _jumpDistance = 4.0; // grid units horizontal per jump
+  static const double _jumpDuration = 0.49; // longer airtime = longer jump
+
+  // Hold-to-jump
+  bool _inputHeld = false;
 
   bool get _isGrounded => !_jumping && !_falling;
 
@@ -36,7 +40,7 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
     super.onGameResize(size);
     gridUnit = size.y / 10;
     groundY = size.y - gridUnit;
-    scrollSpeed = gridUnit * 6;
+    scrollSpeed = gridUnit * _jumpDistance / _jumpDuration;
     playerX = 3 * gridUnit;
     playerY = groundY - gridUnit;
   }
@@ -45,7 +49,7 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
   Future<void> onLoad() async {
     gridUnit = size.y / 10;
     groundY = size.y - gridUnit;
-    scrollSpeed = gridUnit * 6;
+    scrollSpeed = gridUnit * _jumpDistance / _jumpDuration;
     playerX = 3 * gridUnit;
     playerY = groundY - gridUnit;
   }
@@ -72,6 +76,11 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
     super.update(dt);
     if (gameOver || levelComplete) return;
 
+    // Hold-to-jump: auto-jump when grounded and input held
+    if (_inputHeld && _isGrounded) {
+      _jump();
+    }
+
     // Scroll
     scrollOffset += scrollSpeed * dt;
 
@@ -95,6 +104,11 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
 
     // Ground/platform collision
     _checkLanding();
+
+    // Check if grounded player has ground beneath (gaps + platform edges)
+    if (_isGrounded) {
+      _checkStillSupported();
+    }
 
     // Death: fell off screen
     if (playerY > size.y + gridUnit) {
@@ -125,7 +139,6 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
 
       if (playerRight > tileScreenX + 2 && playerLeft < tileScreenX + gridUnit - 2) {
         if (playerBottom >= tileTop && playerBottom <= tileTop + gridUnit * 0.6) {
-          // Land
           playerY = tileTop - gridUnit;
           _jumping = false;
           _falling = false;
@@ -134,6 +147,30 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
         }
       }
     }
+  }
+
+  /// Check if grounded player still has support beneath. If not, start falling.
+  void _checkStillSupported() {
+    final playerBottom = playerY + gridUnit;
+    final playerLeft = playerX;
+    final playerRight = playerX + gridUnit;
+
+    final level = levels[currentLevel];
+    for (final tile in level.tiles) {
+      if (tile.type == TileType.triangle) continue;
+      final tileScreenX = tile.x * gridUnit - scrollOffset;
+      final tileTop = groundY - tile.y * gridUnit;
+
+      if (playerRight > tileScreenX + 2 && playerLeft < tileScreenX + gridUnit - 2) {
+        // Check tile is directly below player (within tolerance)
+        if ((playerBottom - tileTop).abs() < 2) {
+          return; // supported
+        }
+      }
+    }
+    // No support found — fall
+    _falling = true;
+    _fallSpeed = 0;
   }
 
   void _checkObstacleCollision() {
@@ -150,19 +187,13 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
       final tileBottom = tileTop + gridUnit;
       final tileRight = tileScreenX + gridUnit;
 
-      // Broad check
       if (playerRight <= tileScreenX || playerLeft >= tileRight) continue;
       if (playerBottom <= tileTop || playerTop >= tileBottom) continue;
 
-      // Overlap exists
       if (tile.type == TileType.triangle) {
-        // Triangle hitbox: check if player overlaps the actual triangle shape
-        // Triangle points: top-center, bottom-left, bottom-right
         final triPeakX = tileScreenX + gridUnit / 2;
         final px = playerLeft + gridUnit / 2;
-        // Simple: if player bottom is below triangle top and horizontally inside
-        // the triangle narrows toward top, width at height h from bottom = gridUnit * (1 - h/gridUnit)
-        final h = tileBottom - playerTop; // how deep into triangle zone
+        final h = tileBottom - playerTop;
         final widthAtH = gridUnit * (h / gridUnit);
         final triLeft = triPeakX - widthAtH / 2;
         final triRight = triPeakX + widthAtH / 2;
@@ -171,7 +202,6 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
           return;
         }
       } else if (tile.type == TileType.block) {
-        // Side hit = death (not landing from top)
         final overlap = playerRight - tileScreenX;
         if (overlap < gridUnit * 0.4) {
           _die();
@@ -193,7 +223,6 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
 
     final level = levels[currentLevel];
 
-    // Draw tiles
     for (final tile in level.tiles) {
       final screenX = tile.x * gridUnit - scrollOffset;
       if (screenX > size.x + gridUnit || screenX < -gridUnit) continue;
@@ -219,7 +248,6 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
       }
     }
 
-    // Draw player
     final playerRect = Rect.fromLTWH(playerX, playerY, gridUnit, gridUnit);
     canvas.drawRect(playerRect, Paint()..color = const Color(0xFF00FFFF));
     canvas.drawRect(
@@ -230,13 +258,29 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
 
   @override
   void onTapDown(TapDownEvent event) {
+    _inputHeld = true;
     _jump();
   }
 
   @override
+  void onTapUp(TapUpEvent event) {
+    _inputHeld = false;
+  }
+
+  @override
+  void onTapCancel(TapCancelEvent event) {
+    _inputHeld = false;
+  }
+
+  @override
   KeyEventResult onKeyEvent(KeyEvent event, Set<LogicalKeyboardKey> keysPressed) {
-    if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.space) {
-      _jump();
+    if (event.logicalKey == LogicalKeyboardKey.space) {
+      if (event is KeyDownEvent) {
+        _inputHeld = true;
+        _jump();
+      } else if (event is KeyUpEvent) {
+        _inputHeld = false;
+      }
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
