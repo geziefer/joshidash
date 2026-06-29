@@ -50,7 +50,7 @@ final level1 = LevelData(
     LevelTile(52, 1, TileType.triangle),
     LevelTile(53, 1, TileType.triangle),
     LevelTile(54, 1, TileType.triangle),
-    for (int x = 50; x <= 60; x++) LevelTile(x, 0, TileType.ground),
+    for (int x = 50; x <= 68; x++) LevelTile(x, 0, TileType.ground),
   ],
 );
 

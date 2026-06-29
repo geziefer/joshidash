@@ -99,7 +99,6 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
         _fallSpeed = 0;
         _checkLanding();
       } else {
-        final prevY = playerY;
         // Three-phase: fast up, float at peak, fast down
         double offsetY;
         if (p < _risePhase) {
@@ -115,9 +114,32 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
           offsetY = _jumpHeight * gridUnit * (1 - t * t);
         }
         playerY = _jumpStartY - offsetY;
-        // Check landing during descent (player moving downward)
-        if (playerY > prevY) {
-          _checkLandingDuringJump();
+        // Check landing during float or descent
+        if (p >= _risePhase) {
+          final playerBottom = playerY + gridUnit;
+          final playerLeft = playerX;
+          final playerRight = playerX + gridUnit;
+          double? bestSurface;
+          final level = levels[currentLevel];
+          for (final tile in level.tiles) {
+            if (tile.type == TileType.triangle) continue;
+            if (tile.y == 0) continue; // don't land on ground during jump
+            final tileScreenX = tile.x * gridUnit - scrollOffset;
+            final tileTop = groundY - tile.y * gridUnit;
+            if (playerRight > tileScreenX && playerLeft < tileScreenX + gridUnit) {
+              if (playerBottom >= tileTop - gridUnit * 0.1 && playerBottom <= tileTop + gridUnit * 0.5) {
+                if (bestSurface == null || tileTop < bestSurface) {
+                  bestSurface = tileTop;
+                }
+              }
+            }
+          }
+          if (bestSurface != null) {
+            playerY = bestSurface - gridUnit;
+            _jumping = false;
+            _falling = false;
+            _fallSpeed = 0;
+          }
         }
       }
     } else if (_falling) {
@@ -150,35 +172,6 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
     }
   }
 
-  /// Land on elevated platforms during jump descent (above start height).
-  void _checkLandingDuringJump() {
-    final playerBottom = playerY + gridUnit;
-    final playerLeft = playerX;
-    final playerRight = playerX + gridUnit;
-
-    final level = levels[currentLevel];
-    for (final tile in level.tiles) {
-      if (tile.type == TileType.triangle) continue;
-      final tileScreenX = tile.x * gridUnit - scrollOffset;
-      final tileTop = groundY - tile.y * gridUnit;
-
-      // Only land on surfaces higher than where we started
-      if (tileTop >= _jumpStartY + gridUnit) continue;
-
-      if (playerRight > tileScreenX + 2 &&
-          playerLeft < tileScreenX + gridUnit - 2) {
-        if (playerBottom >= tileTop &&
-            playerBottom <= tileTop + gridUnit * 0.4) {
-          playerY = tileTop - gridUnit;
-          _jumping = false;
-          _falling = false;
-          _fallSpeed = 0;
-          return;
-        }
-      }
-    }
-  }
-
   void _checkLanding() {
     if (!_falling) return; // only land when actually falling
     final playerBottom = playerY + gridUnit;
@@ -194,8 +187,10 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
 
       if (playerRight > tileScreenX + 2 &&
           playerLeft < tileScreenX + gridUnit - 2) {
+        // Only land if player hasn't fallen far past the surface
+        final maxOvershoot = _fallSpeed * 0.03 + 4;
         if (playerBottom >= tileTop &&
-            playerBottom <= tileTop + gridUnit * 0.3 + _fallSpeed * 0.02) {
+            playerBottom <= tileTop + maxOvershoot) {
           // Pick the highest (smallest Y) surface
           if (bestSurface == null || tileTop < bestSurface) {
             bestSurface = tileTop;
@@ -314,6 +309,29 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
             ..lineTo(screenX, tileTop + gridUnit)
             ..close();
           canvas.drawPath(path, Paint()..color = const Color(0xFFFF0040));
+      }
+    }
+
+    // Draw finish gate
+    final gateX = level.length * gridUnit - scrollOffset;
+    if (gateX < size.x + gridUnit * 3 && gateX > -gridUnit * 3) {
+      final gateHeight = gridUnit * 4;
+      final gateTop = groundY - gateHeight;
+      final gateWidth = gridUnit * 0.3;
+      final gatePaint = Paint()..color = const Color(0xFF00FF00);
+      final gateStroke = Paint()
+        ..color = const Color(0xFF00FF00)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2;
+      // Two pillars
+      canvas.drawRect(Rect.fromLTWH(gateX, gateTop, gateWidth, gateHeight), gatePaint);
+      canvas.drawRect(Rect.fromLTWH(gateX + gridUnit * 2, gateTop, gateWidth, gateHeight), gatePaint);
+      // Top bar
+      canvas.drawRect(Rect.fromLTWH(gateX, gateTop, gridUnit * 2 + gateWidth, gateWidth), gatePaint);
+      // Checkered pattern (simple lines)
+      for (int i = 0; i < 4; i++) {
+        final y = gateTop + gateWidth + i * gridUnit;
+        canvas.drawLine(Offset(gateX + gateWidth, y), Offset(gateX + gridUnit * 2, y), gateStroke);
       }
     }
 
