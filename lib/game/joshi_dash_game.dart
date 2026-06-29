@@ -34,6 +34,10 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
   bool _inputHeld = false;
   double _playerRotation = 0; // current rotation angle in radians
 
+  // Debug mode
+  static const bool devMode = true;
+  bool _godMode = false;
+
   bool get _isGrounded => !_jumping && !_falling;
 
   @override
@@ -87,7 +91,14 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
     }
 
     // Scroll
-    scrollOffset += scrollSpeed * dt;
+    scrollOffset += scrollSpeed * (_godMode ? 2.0 : 1.0) * dt;
+
+    // God mode: stay on ground, no physics
+    if (_godMode) {
+      playerY = groundY - gridUnit;
+      _jumping = false;
+      _falling = false;
+    }
 
     // Jump / fall physics
     if (_jumping) {
@@ -98,9 +109,9 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
       if (p >= 1.0) {
         _jumping = false;
         playerY = _jumpStartY;
-        // Try to land immediately, otherwise fall
+        // Try to land immediately, otherwise fall with initial velocity
         _falling = true;
-        _fallSpeed = 0;
+        _fallSpeed = _jumpHeight * gridUnit / _jumpDuration * 2;
         _checkLanding();
       } else {
         // Three-phase: fast up, float at peak, fast down
@@ -158,16 +169,16 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
 
     // Check if grounded player has ground beneath (gaps + platform edges)
     if (_isGrounded) {
-      _checkStillSupported();
+      if (!_godMode) _checkStillSupported();
     }
 
     // Death: fell off screen
-    if (playerY > size.y + gridUnit) {
+    if (!_godMode && playerY > size.y + gridUnit) {
       _die();
     }
 
     // Obstacle collision
-    _checkObstacleCollision();
+    if (!_godMode) _checkObstacleCollision();
 
     // Level complete
     if (scrollOffset >= levels[currentLevel].length * gridUnit) {
@@ -264,10 +275,13 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
           return;
         }
       } else if (tile.type == TileType.block) {
-        final overlap = playerRight - tileScreenX;
-        if (overlap < gridUnit * 0.4) {
-          _die();
-          return;
+        // Only side hit = death if player bottom is below block top (not landing from above)
+        if (playerBottom > tileTop + gridUnit * 0.3) {
+          final overlap = playerRight - tileScreenX;
+          if (overlap < gridUnit * 0.4) {
+            _die();
+            return;
+          }
         }
       }
     }
@@ -386,6 +400,10 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
       } else if (event is KeyUpEvent) {
         _inputHeld = false;
       }
+      return KeyEventResult.handled;
+    }
+    if (devMode && event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.shiftLeft) {
+      _godMode = !_godMode;
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
