@@ -42,6 +42,7 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
   // Hold-to-jump
   bool _inputHeld = false;
   double _playerRotation = 0; // current rotation angle in radians
+  double _rotationBase = 0; // rotation at start of jump
 
   // Debug mode
   static const bool devMode = true;
@@ -86,6 +87,7 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
     _falling = false;
     _fallSpeed = 0;
     _playerRotation = 0;
+    _rotationBase = 0;
     playerY = groundY - gridUnit;
   }
 
@@ -94,6 +96,7 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
     _jumping = true;
     _jumpTime = 0;
     _jumpStartY = playerY;
+    _rotationBase = _playerRotation;
   }
 
   @override
@@ -121,9 +124,10 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
       _jumpTime += dt;
       final p = _jumpTime / _jumpDuration;
       // Rotation completes 180° during rise+float phase (0 to _floatPhase)
-      _playerRotation = (p / _floatPhase).clamp(0.0, 1.0) * 3.14159;
+      _playerRotation = _rotationBase + (p / _floatPhase).clamp(0.0, 1.0) * 3.14159;
       if (p >= 1.0) {
         _jumping = false;
+        _playerRotation = _rotationBase + 3.14159;
         playerY = _jumpStartY;
         // Try to land immediately, otherwise fall with initial velocity
         _falling = true;
@@ -170,6 +174,7 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
             _jumping = false;
             _falling = false;
             _fallSpeed = 0;
+            _playerRotation = _rotationBase + 3.14159;
           }
         }
       }
