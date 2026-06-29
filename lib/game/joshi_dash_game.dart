@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
@@ -22,6 +23,9 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
   late ui.Image _platformImg;
   late ui.Image _gateImg;
   late ui.Image _pitImg;
+
+  // Parallax stars
+  late List<Offset> _stars;
   VoidCallback? onLevelComplete;
 
   // Player state
@@ -77,6 +81,13 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
     scrollSpeed = gridUnit * _jumpDistance / _jumpDuration;
     playerX = 3 * gridUnit;
     playerY = groundY - gridUnit;
+
+    // Generate parallax stars
+    final rng = Random(42);
+    _stars = List.generate(150, (_) => Offset(
+      rng.nextDouble() * size.x * 3,
+      rng.nextDouble() * (groundY - gridUnit),
+    ));
   }
 
   void restart() {
@@ -346,6 +357,16 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
   @override
   void render(Canvas canvas) {
     super.render(canvas);
+
+    // Parallax stars (scroll at 15% of main speed)
+    final starPaint = Paint()..color = const Color(0xAAFFFFFF);
+    final parallaxOffset = scrollOffset * 0.15;
+    for (final star in _stars) {
+      final sx = (star.dx - parallaxOffset) % (size.x * 3) - size.x;
+      if (sx >= 0 && sx <= size.x) {
+        canvas.drawCircle(Offset(sx, star.dy), 1.5, starPaint);
+      }
+    }
 
     final level = levels[currentLevel];
 
