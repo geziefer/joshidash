@@ -138,18 +138,27 @@ class _GameScreenState extends State<GameScreen> {
         children: [
           GameWidget(game: _game),
           if (_showOverlay)
-            GestureDetector(
-              onTap: _handleOverlayTap,
-              child: Container(
-                color: Colors.black54,
-                alignment: Alignment.center,
-                child: Text(
-                  _overlayText,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Color(0xFF00FFFF),
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
+            KeyboardListener(
+              focusNode: FocusNode()..requestFocus(),
+              autofocus: true,
+              onKeyEvent: (event) {
+                if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.space) {
+                  _handleOverlayTap();
+                }
+              },
+              child: GestureDetector(
+                onTap: _handleOverlayTap,
+                child: Container(
+                  color: Colors.black54,
+                  alignment: Alignment.center,
+                  child: Text(
+                    _overlayText,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Color(0xFF00FFFF),
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
