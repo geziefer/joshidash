@@ -1,5 +1,6 @@
 import 'package:flame/game.dart' hide Route;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'game/joshi_dash_game.dart';
 
 void main() {
@@ -28,7 +29,15 @@ class StartPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
+      body: KeyboardListener(
+        focusNode: FocusNode()..requestFocus(),
+        autofocus: true,
+        onKeyEvent: (event) {
+          if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.space) {
+            Navigator.of(context).push(_gameRoute());
+          }
+        },
+        child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -71,6 +80,7 @@ class StartPage extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

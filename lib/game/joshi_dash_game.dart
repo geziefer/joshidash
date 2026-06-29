@@ -93,8 +93,13 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
         _falling = true;
         _fallSpeed = 0;
       } else {
+        final prevY = playerY;
         final offsetY = 4 * _jumpHeight * gridUnit * p * (1 - p);
         playerY = _jumpStartY - offsetY;
+        // Check landing during descent (player moving downward)
+        if (playerY > prevY) {
+          _checkLandingDuringJump();
+        }
       }
     } else if (_falling) {
       final gravity =
@@ -126,8 +131,8 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
     }
   }
 
-  void _checkLanding() {
-    if (!_falling) return; // only land when actually falling
+  /// Land on elevated platforms during jump descent (above start height).
+  void _checkLandingDuringJump() {
     final playerBottom = playerY + gridUnit;
     final playerLeft = playerX;
     final playerRight = playerX + gridUnit;
@@ -138,11 +143,13 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
       final tileScreenX = tile.x * gridUnit - scrollOffset;
       final tileTop = groundY - tile.y * gridUnit;
 
+      // Only land on surfaces higher than where we started
+      if (tileTop >= _jumpStartY + gridUnit) continue;
+
       if (playerRight > tileScreenX + 2 &&
           playerLeft < tileScreenX + gridUnit - 2) {
-        // Land only if player bottom is at or just past tile top
         if (playerBottom >= tileTop &&
-            playerBottom <= tileTop + _fallSpeed * 0.02 + 4) {
+            playerBottom <= tileTop + gridUnit * 0.4) {
           playerY = tileTop - gridUnit;
           _jumping = false;
           _falling = false;
@@ -153,10 +160,43 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
     }
   }
 
+  void _checkLanding() {
+    if (!_falling) return; // only land when actually falling
+    final playerBottom = playerY + gridUnit;
+    final playerLeft = playerX;
+    final playerRight = playerX + gridUnit;
+
+    double? bestSurface;
+    final level = levels[currentLevel];
+    for (final tile in level.tiles) {
+      if (tile.type == TileType.triangle) continue;
+      final tileScreenX = tile.x * gridUnit - scrollOffset;
+      final tileTop = groundY - tile.y * gridUnit;
+
+      if (playerRight > tileScreenX + 2 &&
+          playerLeft < tileScreenX + gridUnit - 2) {
+        if (playerBottom >= tileTop &&
+            playerBottom <= tileTop + gridUnit * 0.3 + _fallSpeed * 0.02) {
+          // Pick the highest (smallest Y) surface
+          if (bestSurface == null || tileTop < bestSurface) {
+            bestSurface = tileTop;
+          }
+        }
+      }
+    }
+    if (bestSurface != null) {
+      playerY = bestSurface - gridUnit;
+      _jumping = false;
+      _falling = false;
+      _fallSpeed = 0;
+    }
+  }
+
   /// Check if grounded player still has support beneath. If not, start falling.
   void _checkStillSupported() {
     final playerBottom = playerY + gridUnit;
-    final playerCenterX = playerX + gridUnit / 2;
+    final playerLeft = playerX;
+    final playerRight = playerX + gridUnit;
 
     final level = levels[currentLevel];
     for (final tile in level.tiles) {
@@ -164,9 +204,10 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
       final tileScreenX = tile.x * gridUnit - scrollOffset;
       final tileTop = groundY - tile.y * gridUnit;
 
-      // Player center must be over the tile horizontally
-      if (playerCenterX > tileScreenX && playerCenterX < tileScreenX + gridUnit) {
-        if ((playerBottom - tileTop).abs() < 2) {
+      // Any horizontal overlap between player and tile
+      if (playerRight > tileScreenX && playerLeft < tileScreenX + gridUnit) {
+        // Tile top is near player bottom (player standing on it)
+        if (playerBottom >= tileTop - 2 && playerBottom <= tileTop + gridUnit * 0.5) {
           return; // supported
         }
       }
