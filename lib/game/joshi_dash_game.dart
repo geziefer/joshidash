@@ -32,6 +32,7 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
 
   // Hold-to-jump
   bool _inputHeld = false;
+  double _playerRotation = 0; // current rotation angle in radians
 
   bool get _isGrounded => !_jumping && !_falling;
 
@@ -64,6 +65,7 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
     _jumping = false;
     _falling = false;
     _fallSpeed = 0;
+    _playerRotation = 0;
     playerY = groundY - gridUnit;
   }
 
@@ -91,6 +93,8 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
     if (_jumping) {
       _jumpTime += dt;
       final p = _jumpTime / _jumpDuration;
+      // Rotation completes 180° during rise+float phase (0 to _floatPhase)
+      _playerRotation = (p / _floatPhase).clamp(0.0, 1.0) * 3.14159;
       if (p >= 1.0) {
         _jumping = false;
         playerY = _jumpStartY;
@@ -335,6 +339,13 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
       }
     }
 
+    // Draw player with rotation
+    final cx = playerX + gridUnit / 2;
+    final cy = playerY + gridUnit / 2;
+    canvas.save();
+    canvas.translate(cx, cy);
+    canvas.rotate(_playerRotation);
+    canvas.translate(-cx, -cy);
     final playerRect = Rect.fromLTWH(playerX, playerY, gridUnit, gridUnit);
     canvas.drawRect(playerRect, Paint()..color = const Color(0xFF00FFFF));
     canvas.drawRect(
@@ -344,6 +355,7 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2,
     );
+    canvas.restore();
   }
 
   @override
