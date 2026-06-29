@@ -90,8 +90,11 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
       final p = _jumpTime / _jumpDuration;
       if (p >= 1.0) {
         _jumping = false;
+        playerY = _jumpStartY;
+        // Try to land immediately, otherwise fall
         _falling = true;
         _fallSpeed = 0;
+        _checkLanding();
       } else {
         final prevY = playerY;
         final offsetY = 4 * _jumpHeight * gridUnit * p * (1 - p);
