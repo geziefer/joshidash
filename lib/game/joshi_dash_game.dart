@@ -21,6 +21,7 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
   late ui.Image _spikeImg;
   late ui.Image _platformImg;
   late ui.Image _gateImg;
+  late ui.Image _pitImg;
   VoidCallback? onLevelComplete;
 
   // Player state
@@ -68,6 +69,7 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
     _spikeImg = await _loadImage('assets/spike.png');
     _platformImg = await _loadImage('assets/platform.png');
     _gateImg = await _loadImage('assets/gate.png');
+    _pitImg = await _loadImage('assets/pit.png');
 
     gridUnit = size.y / 10;
     groundY = size.y - gridUnit;
@@ -151,7 +153,7 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
           double? bestSurface;
           final level = levels[currentLevel];
           for (final tile in level.tiles) {
-            if (tile.type == TileType.triangle) continue;
+            if (tile.type != TileType.ground && tile.type != TileType.block) continue;
             if (tile.y == 0) continue; // don't land on ground during jump
             final tileScreenX = tile.x * gridUnit - scrollOffset;
             final tileTop = groundY - tile.y * gridUnit;
@@ -199,6 +201,19 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
       levelComplete = true;
       onLevelComplete?.call();
     }
+
+    // Check gate contact
+    if (!levelComplete) {
+      final level = levels[currentLevel];
+      for (final tile in level.tiles) {
+        if (tile.type != TileType.gate) continue;
+        final gateScreenX = tile.x * gridUnit - scrollOffset;
+        if (playerX + gridUnit > gateScreenX && playerX < gateScreenX + gridUnit * 2) {
+          levelComplete = true;
+          onLevelComplete?.call();
+        }
+      }
+    }
   }
 
   void _checkLanding() {
@@ -210,7 +225,7 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
     double? bestSurface;
     final level = levels[currentLevel];
     for (final tile in level.tiles) {
-      if (tile.type == TileType.triangle) continue;
+      if (tile.type != TileType.ground && tile.type != TileType.block) continue;
       final tileScreenX = tile.x * gridUnit - scrollOffset;
       final tileTop = groundY - tile.y * gridUnit;
 
@@ -243,7 +258,7 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
 
     final level = levels[currentLevel];
     for (final tile in level.tiles) {
-      if (tile.type == TileType.triangle) continue;
+      if (tile.type != TileType.ground && tile.type != TileType.block) continue;
       final tileScreenX = tile.x * gridUnit - scrollOffset;
       final tileTop = groundY - tile.y * gridUnit;
 
@@ -268,7 +283,7 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
 
     final level = levels[currentLevel];
     for (final tile in level.tiles) {
-      if (tile.type == TileType.ground) continue;
+      if (tile.type == TileType.ground || tile.type == TileType.gate || tile.type == TileType.pit) continue;
       final tileScreenX = tile.x * gridUnit - scrollOffset;
       final tileTop = groundY - tile.y * gridUnit;
       final tileBottom = tileTop + gridUnit;
@@ -336,21 +351,16 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
 
       switch (tile.type) {
         case TileType.ground:
-          // base.png is 2x1 units, draw at 2*gridUnit wide, 1*gridUnit tall
           _drawImage(canvas, _baseImg, screenX, tileTop, gridUnit * 2, gridUnit);
         case TileType.block:
-          // platform.png is 2x1 units
           _drawImage(canvas, _platformImg, screenX, tileTop, gridUnit * 2, gridUnit);
         case TileType.triangle:
-          // spike.png is 1x1
           _drawImage(canvas, _spikeImg, screenX, tileTop, gridUnit, gridUnit);
+        case TileType.gate:
+          _drawImage(canvas, _gateImg, screenX, tileTop - gridUnit, gridUnit * 2, gridUnit * 2);
+        case TileType.pit:
+          _drawImage(canvas, _pitImg, screenX, tileTop, gridUnit * 2, gridUnit);
       }
-    }
-
-    // Draw finish gate (2x2 units)
-    final gateX = level.length * gridUnit - scrollOffset;
-    if (gateX < size.x + gridUnit * 3 && gateX > -gridUnit * 3) {
-      _drawImage(canvas, _gateImg, gateX, groundY - gridUnit * 2, gridUnit * 2, gridUnit * 2);
     }
 
     // Draw player with rotation (1x1)
