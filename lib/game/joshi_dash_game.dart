@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/widgets.dart';
@@ -13,6 +14,13 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
   bool gameOver = false;
   bool levelComplete = false;
   VoidCallback? onGameOver;
+
+  // Sprites
+  late ui.Image _playerImg;
+  late ui.Image _baseImg;
+  late ui.Image _spikeImg;
+  late ui.Image _platformImg;
+  late ui.Image _gateImg;
   VoidCallback? onLevelComplete;
 
   // Player state
@@ -55,6 +63,12 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
 
   @override
   Future<void> onLoad() async {
+    _playerImg = await _loadImage('assets/player.png');
+    _baseImg = await _loadImage('assets/base.png');
+    _spikeImg = await _loadImage('assets/spike.png');
+    _platformImg = await _loadImage('assets/platform.png');
+    _gateImg = await _loadImage('assets/gate.png');
+
     gridUnit = size.y / 10;
     groundY = size.y - gridUnit;
     scrollSpeed = gridUnit * _jumpDistance / _jumpDuration;
@@ -293,6 +307,22 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
     onGameOver?.call();
   }
 
+  Future<ui.Image> _loadImage(String path) async {
+    final data = await rootBundle.load(path);
+    final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
+    final frame = await codec.getNextFrame();
+    return frame.image;
+  }
+
+  void _drawImage(Canvas canvas, ui.Image img, double x, double y, double w, double h) {
+    canvas.drawImageRect(
+      img,
+      Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()),
+      Rect.fromLTWH(x, y, w, h),
+      Paint(),
+    );
+  }
+
   @override
   void render(Canvas canvas) {
     super.render(canvas);
@@ -301,74 +331,36 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
 
     for (final tile in level.tiles) {
       final screenX = tile.x * gridUnit - scrollOffset;
-      if (screenX > size.x + gridUnit || screenX < -gridUnit) continue;
+      if (screenX > size.x + gridUnit * 2 || screenX < -gridUnit * 2) continue;
       final tileTop = groundY - tile.y * gridUnit;
 
       switch (tile.type) {
         case TileType.ground:
-          canvas.drawRect(
-            Rect.fromLTWH(screenX, tileTop, gridUnit, gridUnit),
-            Paint()..color = const Color(0xFF333333),
-          );
+          // base.png is 2x1 units, draw at 2*gridUnit wide, 1*gridUnit tall
+          _drawImage(canvas, _baseImg, screenX, tileTop, gridUnit * 2, gridUnit);
         case TileType.block:
-          final rect = Rect.fromLTWH(screenX, tileTop, gridUnit, gridUnit);
-          canvas.drawRect(rect, Paint()..color = const Color(0xFFFF00FF));
-          canvas.drawRect(
-            rect,
-            Paint()
-              ..color = const Color(0xFFFF00FF)
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = 1,
-          );
+          // platform.png is 2x1 units
+          _drawImage(canvas, _platformImg, screenX, tileTop, gridUnit * 2, gridUnit);
         case TileType.triangle:
-          final path = Path()
-            ..moveTo(screenX + gridUnit / 2, tileTop)
-            ..lineTo(screenX + gridUnit, tileTop + gridUnit)
-            ..lineTo(screenX, tileTop + gridUnit)
-            ..close();
-          canvas.drawPath(path, Paint()..color = const Color(0xFFFF0040));
+          // spike.png is 1x1
+          _drawImage(canvas, _spikeImg, screenX, tileTop, gridUnit, gridUnit);
       }
     }
 
-    // Draw finish gate
+    // Draw finish gate (2x2 units)
     final gateX = level.length * gridUnit - scrollOffset;
     if (gateX < size.x + gridUnit * 3 && gateX > -gridUnit * 3) {
-      final gateHeight = gridUnit * 4;
-      final gateTop = groundY - gateHeight;
-      final gateWidth = gridUnit * 0.3;
-      final gatePaint = Paint()..color = const Color(0xFF00FF00);
-      final gateStroke = Paint()
-        ..color = const Color(0xFF00FF00)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2;
-      // Two pillars
-      canvas.drawRect(Rect.fromLTWH(gateX, gateTop, gateWidth, gateHeight), gatePaint);
-      canvas.drawRect(Rect.fromLTWH(gateX + gridUnit * 2, gateTop, gateWidth, gateHeight), gatePaint);
-      // Top bar
-      canvas.drawRect(Rect.fromLTWH(gateX, gateTop, gridUnit * 2 + gateWidth, gateWidth), gatePaint);
-      // Checkered pattern (simple lines)
-      for (int i = 0; i < 4; i++) {
-        final y = gateTop + gateWidth + i * gridUnit;
-        canvas.drawLine(Offset(gateX + gateWidth, y), Offset(gateX + gridUnit * 2, y), gateStroke);
-      }
+      _drawImage(canvas, _gateImg, gateX, groundY - gridUnit * 2, gridUnit * 2, gridUnit * 2);
     }
 
-    // Draw player with rotation
+    // Draw player with rotation (1x1)
     final cx = playerX + gridUnit / 2;
     final cy = playerY + gridUnit / 2;
     canvas.save();
     canvas.translate(cx, cy);
     canvas.rotate(_playerRotation);
     canvas.translate(-cx, -cy);
-    final playerRect = Rect.fromLTWH(playerX, playerY, gridUnit, gridUnit);
-    canvas.drawRect(playerRect, Paint()..color = const Color(0xFF00FFFF));
-    canvas.drawRect(
-      playerRect,
-      Paint()
-        ..color = const Color(0xFF00FFFF)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2,
-    );
+    _drawImage(canvas, _playerImg, playerX, playerY, gridUnit, gridUnit);
     canvas.restore();
   }
 
