@@ -377,6 +377,16 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
     canvas.translate(-cx, -cy);
     _drawImage(canvas, _playerImg, playerX, playerY, gridUnit, gridUnit);
     canvas.restore();
+
+    // Level indicator
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: 'Level ${currentLevel + 1}',
+        style: const TextStyle(color: Color(0xFF00FFFF), fontSize: 32, fontWeight: FontWeight.bold),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    textPainter.paint(canvas, Offset(size.x - textPainter.width - 12, 12));
   }
 
   @override
