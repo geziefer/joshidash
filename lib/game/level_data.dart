@@ -44,7 +44,7 @@ final level1 = LevelData(
     for (int x = 34; x <= 38; x++) LevelTile(x, 0, TileType.ground),
     // Double triangle (4 units apart = land between them)
     LevelTile(40, 1, TileType.triangle),
-    LevelTile(44, 1, TileType.triangle),
+    LevelTile(45, 1, TileType.triangle),
     for (int x = 39; x <= 49; x++) LevelTile(x, 0, TileType.ground),
   ],
 );

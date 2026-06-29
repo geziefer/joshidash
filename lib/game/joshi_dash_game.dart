@@ -97,7 +97,8 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
         playerY = _jumpStartY - offsetY;
       }
     } else if (_falling) {
-      final gravity = _jumpHeight * gridUnit / (_jumpDuration * _jumpDuration) * 4;
+      final gravity =
+          _jumpHeight * gridUnit / (_jumpDuration * _jumpDuration) * 4;
       _fallSpeed += gravity * dt;
       playerY += _fallSpeed * dt;
     }
@@ -126,7 +127,7 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
   }
 
   void _checkLanding() {
-    if (_isGrounded) return;
+    if (!_falling) return; // only land when actually falling
     final playerBottom = playerY + gridUnit;
     final playerLeft = playerX;
     final playerRight = playerX + gridUnit;
@@ -137,8 +138,11 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
       final tileScreenX = tile.x * gridUnit - scrollOffset;
       final tileTop = groundY - tile.y * gridUnit;
 
-      if (playerRight > tileScreenX + 2 && playerLeft < tileScreenX + gridUnit - 2) {
-        if (playerBottom >= tileTop && playerBottom <= tileTop + gridUnit * 0.6) {
+      if (playerRight > tileScreenX + 2 &&
+          playerLeft < tileScreenX + gridUnit - 2) {
+        // Land only if player bottom is at or just past tile top
+        if (playerBottom >= tileTop &&
+            playerBottom <= tileTop + _fallSpeed * 0.02 + 4) {
           playerY = tileTop - gridUnit;
           _jumping = false;
           _falling = false;
@@ -152,8 +156,7 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
   /// Check if grounded player still has support beneath. If not, start falling.
   void _checkStillSupported() {
     final playerBottom = playerY + gridUnit;
-    final playerLeft = playerX;
-    final playerRight = playerX + gridUnit;
+    final playerCenterX = playerX + gridUnit / 2;
 
     final level = levels[currentLevel];
     for (final tile in level.tiles) {
@@ -161,8 +164,8 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
       final tileScreenX = tile.x * gridUnit - scrollOffset;
       final tileTop = groundY - tile.y * gridUnit;
 
-      if (playerRight > tileScreenX + 2 && playerLeft < tileScreenX + gridUnit - 2) {
-        // Check tile is directly below player (within tolerance)
+      // Player center must be over the tile horizontally
+      if (playerCenterX > tileScreenX && playerCenterX < tileScreenX + gridUnit) {
         if ((playerBottom - tileTop).abs() < 2) {
           return; // supported
         }
@@ -237,7 +240,13 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
         case TileType.block:
           final rect = Rect.fromLTWH(screenX, tileTop, gridUnit, gridUnit);
           canvas.drawRect(rect, Paint()..color = const Color(0xFFFF00FF));
-          canvas.drawRect(rect, Paint()..color = const Color(0xFFFF00FF)..style = PaintingStyle.stroke..strokeWidth = 1);
+          canvas.drawRect(
+            rect,
+            Paint()
+              ..color = const Color(0xFFFF00FF)
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1,
+          );
         case TileType.triangle:
           final path = Path()
             ..moveTo(screenX + gridUnit / 2, tileTop)
@@ -252,7 +261,10 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
     canvas.drawRect(playerRect, Paint()..color = const Color(0xFF00FFFF));
     canvas.drawRect(
       playerRect,
-      Paint()..color = const Color(0xFF00FFFF)..style = PaintingStyle.stroke..strokeWidth = 2,
+      Paint()
+        ..color = const Color(0xFF00FFFF)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2,
     );
   }
 
@@ -273,7 +285,10 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
   }
 
   @override
-  KeyEventResult onKeyEvent(KeyEvent event, Set<LogicalKeyboardKey> keysPressed) {
+  KeyEventResult onKeyEvent(
+    KeyEvent event,
+    Set<LogicalKeyboardKey> keysPressed,
+  ) {
     if (event.logicalKey == LogicalKeyboardKey.space) {
       if (event is KeyDownEvent) {
         _inputHeld = true;
