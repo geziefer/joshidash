@@ -24,8 +24,11 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
   double _jumpStartY = 0;
   double _fallSpeed = 0;
   static const double _jumpHeight = 2.0;
-  static const double _jumpDistance = 4.0; // grid units horizontal per jump
-  static const double _jumpDuration = 0.49; // longer airtime = longer jump
+  static const double _jumpDistance = 5.0; // grid units horizontal per jump
+  static const double _jumpDuration = 0.55; // total jump time
+  // Three-phase jump: up (30%), float (40%), down (30%)
+  static const double _risePhase = 0.3;
+  static const double _floatPhase = 0.7; // end of float = _risePhase + 0.4
 
   // Hold-to-jump
   bool _inputHeld = false;
@@ -97,7 +100,20 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
         _checkLanding();
       } else {
         final prevY = playerY;
-        final offsetY = 4 * _jumpHeight * gridUnit * p * (1 - p);
+        // Three-phase: fast up, float at peak, fast down
+        double offsetY;
+        if (p < _risePhase) {
+          // Rising: quadratic ease-out
+          final t = p / _risePhase;
+          offsetY = _jumpHeight * gridUnit * (1 - (1 - t) * (1 - t));
+        } else if (p < _floatPhase) {
+          // Floating at peak
+          offsetY = _jumpHeight * gridUnit;
+        } else {
+          // Falling: quadratic ease-in
+          final t = (p - _floatPhase) / (1.0 - _floatPhase);
+          offsetY = _jumpHeight * gridUnit * (1 - t * t);
+        }
         playerY = _jumpStartY - offsetY;
         // Check landing during descent (player moving downward)
         if (playerY > prevY) {

@@ -21,7 +21,7 @@ class LevelData {
 /// First level: 50 units long.
 /// Ground from 0-49 with gaps and obstacles.
 final level1 = LevelData(
-  length: 50,
+  length: 65,
   tiles: [
     // Ground (y=0) with gaps
     for (int x = 0; x <= 9; x++) LevelTile(x, 0, TileType.ground),
@@ -46,6 +46,11 @@ final level1 = LevelData(
     LevelTile(40, 1, TileType.triangle),
     LevelTile(45, 1, TileType.triangle),
     for (int x = 39; x <= 49; x++) LevelTile(x, 0, TileType.ground),
+    // 3 spikes in a row (must jump over all 3 in one jump)
+    LevelTile(52, 1, TileType.triangle),
+    LevelTile(53, 1, TileType.triangle),
+    LevelTile(54, 1, TileType.triangle),
+    for (int x = 50; x <= 60; x++) LevelTile(x, 0, TileType.ground),
   ],
 );
 
