@@ -181,7 +181,9 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
             final tileScreenX = tile.x * gridUnit - scrollOffset;
             final tileTop = groundY - tile.y * gridUnit;
             if (playerRight > tileScreenX && playerLeft < tileScreenX + gridUnit) {
-              if (playerBottom >= tileTop - gridUnit * 0.1 && playerBottom <= tileTop + gridUnit * 0.5) {
+              // Only land if player top is above platform top (not hitting from below)
+              if (playerY <= tileTop &&
+                  playerBottom >= tileTop - gridUnit * 0.1 && playerBottom <= tileTop + gridUnit * 0.5) {
                 if (bestSurface == null || tileTop < bestSurface) {
                   bestSurface = tileTop;
                 }
@@ -328,6 +330,11 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
           return;
         }
       } else if (tile.type == TileType.block) {
+        // Head hit from below = death
+        if (playerTop < tileBottom && playerTop > tileTop && _jumping) {
+          _die();
+          return;
+        }
         // Only side hit = death if player bottom is below block top (not landing from above)
         if (playerBottom > tileTop + gridUnit * 0.3) {
           final overlap = playerRight - tileScreenX;
