@@ -28,6 +28,12 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
   late List<Offset> _stars;
   VoidCallback? onLevelComplete;
 
+  // Cached paints for rendering
+  final _imgPaint = Paint()..filterQuality = FilterQuality.low;
+  final _starPaint = Paint()..color = const Color(0xAAFFFFFF);
+  TextPainter? _levelTextPainter;
+  int _levelTextCached = -1;
+
   // Player state
   late double playerX;
   late double playerY;
@@ -113,6 +119,8 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
   @override
   void update(double dt) {
     super.update(dt);
+    // Clamp dt to prevent large jumps on frame drops
+    final clampedDt = dt.clamp(0.0, 0.03);
     if (gameOver || levelComplete) return;
 
     // Hold-to-jump: auto-jump when grounded and input held
@@ -121,7 +129,7 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
     }
 
     // Scroll
-    scrollOffset += scrollSpeed * (_godMode ? 2.0 : 1.0) * dt;
+    scrollOffset += scrollSpeed * (_godMode ? 2.0 : 1.0) * clampedDt;
 
     // God mode: stay on ground, no physics
     if (_godMode) {
@@ -132,7 +140,7 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
 
     // Jump / fall physics
     if (_jumping) {
-      _jumpTime += dt;
+      _jumpTime += clampedDt;
       final p = _jumpTime / _jumpDuration;
       // Rotation completes 180° during rise+float phase (0 to _floatPhase)
       _playerRotation = _rotationBase + (p / _floatPhase).clamp(0.0, 1.0) * 3.14159;
@@ -192,8 +200,8 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
     } else if (_falling) {
       final gravity =
           _jumpHeight * gridUnit / (_jumpDuration * _jumpDuration) * 4;
-      _fallSpeed += gravity * dt;
-      playerY += _fallSpeed * dt;
+      _fallSpeed += gravity * clampedDt;
+      playerY += _fallSpeed * clampedDt;
     }
 
     // Ground/platform collision
@@ -350,7 +358,7 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
       img,
       Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()),
       Rect.fromLTWH(x, y, w, h),
-      Paint(),
+      _imgPaint,
     );
   }
 
@@ -359,12 +367,11 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
     super.render(canvas);
 
     // Parallax stars (scroll at 15% of main speed)
-    final starPaint = Paint()..color = const Color(0xAAFFFFFF);
     final parallaxOffset = scrollOffset * 0.15;
     for (final star in _stars) {
       final sx = (star.dx - parallaxOffset) % (size.x * 3) - size.x;
       if (sx >= 0 && sx <= size.x) {
-        canvas.drawCircle(Offset(sx, star.dy), 1.5, starPaint);
+        canvas.drawCircle(Offset(sx, star.dy), 1.5, _starPaint);
       }
     }
 
@@ -400,14 +407,17 @@ class JoshiDashGame extends FlameGame with TapCallbacks, KeyboardEvents {
     canvas.restore();
 
     // Level indicator
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: 'Level ${currentLevel + 1}',
-        style: const TextStyle(color: Color(0xFF00FFFF), fontSize: 32, fontWeight: FontWeight.bold),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    textPainter.paint(canvas, Offset(size.x - textPainter.width - 12, 12));
+    if (_levelTextCached != currentLevel) {
+      _levelTextPainter = TextPainter(
+        text: TextSpan(
+          text: 'Level ${currentLevel + 1}',
+          style: const TextStyle(color: Color(0xFF00FFFF), fontSize: 32, fontWeight: FontWeight.bold),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      _levelTextCached = currentLevel;
+    }
+    _levelTextPainter!.paint(canvas, Offset(size.x - _levelTextPainter!.width - 12, 12));
   }
 
   @override

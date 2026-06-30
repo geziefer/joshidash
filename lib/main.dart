@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'game/joshi_dash_game.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const JoshiDashApp());
 }
 
